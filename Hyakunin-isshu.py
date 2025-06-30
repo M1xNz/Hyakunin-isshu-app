@@ -1,226 +1,124 @@
-import PySimpleGUI as sg
+import tkinter as tk
+from tkinter import PhotoImage
 import random
-sg.theme("DarkGrey")
+import os
+import csv
 
-# レイアウト
-layout = [
-    [sg.T("上の句：")],
-    [sg.T(k="txt")],
-    [
-        sg.B(image_filename="images/f1s1_000.png", k="btn0"),
-        sg.B(image_filename="images/f1s1_000.png", k="btn1"),
-        sg.B(image_filename="images/f1s1_000.png", k="btn2")
-    ],
-    [
-        sg.B(image_filename="images/f1s1_000.png", k="btn3"),
-        sg.B(image_filename="images/f1s1_000.png", k="btn4"),
-        sg.B(image_filename="images/f1s1_000.png", k="btn5")
-    ],
-    [sg.T(k="tf")],
-    [sg.T("正答数:0", k="count"), sg.T("正答率:0%", k="per")],
-    [sg.B("開始", k="btn"), sg.B("リセット", k="reset_btn"), sg.B("終了", k="exit")],
-]
+IMAGE_DIR = "images"
+IMAGE_PREFIX = "f1s1_"
+IMAGE_EXT = ".png"
 
+class HyakuninIsshuApp:
+    def __init__(self, master):
+        self.master = master
+        master.title("百人一首")
+        master.configure(bg="#404040")
 
-win = sg.Window("百人一首", layout, font=(None,14))
+        # CSV読み込み
+        self.karuta = self.load_karuta("karuta.csv")
+        self.numbers = list(self.karuta.keys())
 
-# 問題データ
-top = [["秋の田のかりほの庵の苫をあらみ",1],
-       ["春過ぎて夏来にけらし白妙の",2],
-       ["あしびきの山鳥の尾のしだり尾の",3],
-       ["田子の浦にうちいでて見れば妙の",4],
-       ["奥山にもみぢふみわけなく鹿の",5],
-       ["かささぎの渡せる橋におく霜の",6],
-       ["天の原ふりさけ見れば春日なる",7],
-       ["わが庵は都のたつみしかぞすむ",8],
-       ["花の色はうつりにけりないたづらに",9],
-       ["これやこの行くも帰るもわかれては",10],
-       ["わたの原八十島かけてこぎいでぬと",11],
-       ["天つ風雲のかよい路吹きとぢよ",12],
-       ["つくばねの峰よりおつるみなの川",13],
-       ["みちのくのしのぶもぢずり誰ゆゑに",14],
-       ["君がため春の野にいでて若菜つむ",15],
-       ["立ちわかれいなばの山の峰に生ふる",16],
-       ["ちはやぶる神代もきかず竜田川",17],
-       ["すみの江の岸に寄る波よるさへや",18],
-       ["難波潟みじかき芦のふしのまも",19],
-       ["わびぬればいまはたおなじ難波なる",20],
-       ["いまこむといひしばかりに長月の",21],
-       ["吹くからに秋の草木のしをるれば",22],
-       ["月みればちぢに物こそかなしけれ",23],
-       ["このたびはぬさもとりあへず手向山",24],
-       ["名にしおはば逢坂山のさねかづら",25],
-       ["小倉山峰のもみぢば心あらば",26],
-       ["みかの原わきて流れるるいづみ川",27],
-       ["山里は冬ぞさびしさまさりける",28],
-       ["心あてに折らばや折らむ初霜の",29],
-       ["ありあけのつれなく見えし別れより",30],
-       ["朝ぼらけありあけの月と見るまで",31],
-       ["山川に風のかけたるしがらみ",32],
-       ["ひさかたの光のどけき春の日に",33],
-       ["誰をかもしる人にせむ高砂の",34],
-       ["人はいさ心もしらずふるさとは",35],
-       ["夏の夜はまだ宵ながら明けぬるを",36],
-       ["白露に風の吹きしく秋の野は",37],
-       ["忘らるる身をば思はずちかひてし",38],
-       ["浅茅生の小野の篠原しのぶれど",39],
-       ["しのぶれど色にいでにけりわが恋は",40],
-       ["恋すてふわが名はまだき立ちにけり",41],
-       ["ちぎりきなかたみに袖をしぼりつつ",42],
-       ["あひみてののちの心にくらぶれば",43],
-       ["あふことのたえてしなくはなかなかに",44],
-       ["あはれともいふべき人は思ほえで",45],
-       ["由良のとをわたる舟人かぢをたえ",46],
-       ["八重むぐら茂れるやどの寂しきに",47],
-       ["風をいたみ岩うつ波のおのれのみ",48],
-       ["みかきもり衛士のたく火の夜はもえ",49],
-       ["君がため惜しからざりしいのちさへ",50],
-       ["かくとだにえやはいぶきのさしも草",51],
-       ["あけぬれば暮るるものとはしりながら",52],
-       ["なげきつつひとりぬる夜のあくるまは",53],
-       ["忘れじのゆくすゑまではかたければ",54],
-       ["滝の音はたえて久しくなりぬれど",55],
-       ["あらざらむこの世のほかの思ひ出に",56],
-       ["めぐりあひてみしやそれともわかぬまに",57],
-       ["ありま山ゐなの笹原風吹けば",58],
-       ["やすらはで寝なましものをさ夜ふけて",59],
-       ["大江山いく野の道の遠ければ",60],
-       ["いにしへの奈良の都の八重桜",61],
-       ["夜をこめて鳥のそらねははかるとも",62],
-       ["世の中よ道こそなけれ思ひ入る",63],
-       ["朝ぼらけ宇治の川霧たえだえに",64],
-       ["うらみわびほさぬ袖だにあるものを",65],
-       ["もろともにあはれと思へ山桜",66],
-       ["春の夜のゆめばかりなる手枕に",67],
-       ["こころにもあらでうき世にながらへば",68],
-       ["あらしふく三室の山のもみぢばは",69],
-       ["さびしさに宿をたちいでてながむれば",70],
-       ["夕されば門田の稲葉おとづれて",71],
-       ["音にきくたかしの浜のあだ波は",72],
-       ["高砂のをのへの桜咲きにけり",73],
-       ["憂かりける人を初瀬の山おろしよ",74],
-       ["ちぎりおきしさせもが露をいのちにて",75],
-       ["わたの原こぎいでてみれば久方の",76],
-       ["瀬をはやみ岩にせかるる滝川の",77],
-       ["淡路島かよふ千鳥のなく声に",78],
-       ["秋風にたなびく雲のたえ間より",79],
-       ["長からむ心もしらず黒髪の",80],
-       ["ほととぎす鳴きつる方をながむれば",81],
-       ["思ひわびさてもいのちはあるものを",82],
-       ["世の中よ道こそなけれ思ひ入る",83],
-       ["ながらへばまたこのごろよやしのばれむ",84],
-       ["夜もすがら物思ふころは明けやらで",85],
-       ["なげけとて月やは物を思はする",86],
-       ["村雨の露もまだひぬまきの葉に",87],
-       ["難波江の芦のかりねのひとよゆゑ",88],
-       ["玉のをよたえなばたえねながらへば",89],
-       ["見せばやな雄島のあまの袖だにも",90],
-       ["きりぎりす鳴くや霜夜のさむしろに",91],
-       ["わが袖は潮干にみえぬ沖の石の",92],
-       ["世の中はつねにもがもななぎさこぐ",93],
-       ["み吉野の山の秋風さ夜ふけて",94],
-       ["おほけなくうき世の民におほふかな",95],
-       ["花さそふ嵐の庭の雪ならで",96],
-       ["こぬ人をまつほの浦の夕なぎに",97],
-       ["風そよぐならの小川の夕ぐれは",98],
-       ["人もをし人もうらめしあぢきなく",99],
-       ["ももしきやふるき軒ばのしのぶにも",100]]
+        # 状態
+        self.correct = 0
+        self.total = 0
+        self.correct_id = None
 
-# 状態管理クラス
-class GameState:
-    def __init__(self, window):
-        self.win = window
-        self.numbers = []
-        self.data = []
-        self.ans = None
-        self.ct = 0   # 正答数
-        self.cr = 0   # 出題数
-        self.al = 0   # 回答数
-        self.per = 0  # 正答率
-        self.btn = "開始"
+        # 上の句ラベル
+        self.ku_label = tk.Label(master, text="上の句：", fg="white", bg="#404040", font=("Helvetica", 14))
+        self.ku_label.pack()
+        self.upper_ku = tk.Label(master, text="", fg="white", bg="#404040", font=("Helvetica", 16))
+        self.upper_ku.pack()
+
+        # 画像ボタン
+        self.frame = tk.Frame(master, bg="#404040")
+        self.frame.pack()
+
+        self.buttons = []
+        self.images = []
+        for i in range(6):
+            dummy = PhotoImage(file=os.path.join(IMAGE_DIR, f"{IMAGE_PREFIX}001{IMAGE_EXT}"))
+            self.images.append(dummy)
+            btn = tk.Button(self.frame, image=dummy, command=lambda i=i: self.check_answer(i))
+            btn.grid(row=i//3, column=i%3, padx=5, pady=5)
+            self.buttons.append(btn)
+
+        # 正答数・正答率
+        self.count_label = tk.Label(master, text="正答数:0", fg="white", bg="#404040")
+        self.count_label.pack()
+        self.per_label = tk.Label(master, text="正答率:0%", fg="white", bg="#404040")
+        self.per_label.pack()
+
+        # 正誤判定ラベル
+        self.judge_label = tk.Label(master, text="", fg="white", bg="#404040", font=("Helvetica", 14))
+        self.judge_label.pack(pady=5)
+
+        # 操作ボタン
+        self.start_button = tk.Button(master, text="開始", command=self.start_quiz)
+        self.start_button.pack(side=tk.LEFT, padx=5, pady=10)
+        self.reset_button = tk.Button(master, text="リセット", command=self.reset)
+        self.reset_button.pack(side=tk.LEFT, padx=5, pady=10)
+        self.exit_button = tk.Button(master, text="終了", command=master.quit)
+        self.exit_button.pack(side=tk.LEFT, padx=5, pady=10)
+
+    def load_karuta(self, csv_file):
+        karuta = {}
+        with open(csv_file, encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                karuta[int(row['id'])] = {
+                    'upper_ku': row['upper_ku'],
+                    'lower_ku': row['lower_ku']
+                }
+        return karuta
+
+    def start_quiz(self):
+        self.correct_id = random.choice(self.numbers)
+        self.upper_ku.config(text=self.karuta[self.correct_id]['upper_ku'])
+
+        choices = random.sample([x for x in self.numbers if x != self.correct_id], 5)
+        all_choices = [self.correct_id] + choices
+        random.shuffle(all_choices)
+
+        for i in range(6):
+            path = os.path.join(IMAGE_DIR, f"{IMAGE_PREFIX}{all_choices[i]:03}{IMAGE_EXT}")
+            img = PhotoImage(file=path)
+            self.images[i] = img
+            self.buttons[i].config(image=img)
+            self.buttons[i].image = img  # GC防止
+            self.buttons[i].config(command=lambda num=all_choices[i]: self.check_answer(num))
+
+    def check_answer(self, selected):
+        if self.correct_id is None:
+            self.judge_label.config(text="問題を開始してください！")
+            return
+
+        self.total += 1
+        if selected == self.correct_id:
+            self.correct += 1
+            self.judge_label.config(text="正解！")
+        else:
+            correct_upper = self.karuta[self.correct_id]['upper_ku']
+            correct_lower = self.karuta[self.correct_id]['lower_ku']
+            self.judge_label.config(
+                text=f"不正解！ 正解は:\n{correct_upper}\n{correct_lower}"
+            )
+
+        per = (self.correct / self.total) * 100 if self.total else 0
+        self.count_label.config(text=f"正答数:{self.correct}")
+        self.per_label.config(text=f"正答率:{per:.1f}%")
+
+        self.master.after(1500, self.start_quiz)
 
     def reset(self):
-        self.ct = 0
-        self.cr = 0
-        self.al = 0
-        self.per = 0
-        self.btn = "開始"
-        self.win["count"].update("正答数:0")
-        self.win["per"].update("正答率:0%")
-        self.win["tf"].update("")
+        self.correct = 0
+        self.total = 0
+        self.correct_id = None
+        self.upper_ku.config(text="")
+        self.count_label.config(text="正答数:0")
+        self.per_label.config(text="正答率:0%")
+        self.judge_label.config(text="")
 
-    def question(self, top):
-        self.cr += 1
-
-        self.numbers = random.sample(range(1, 101), 6)
-        x = random.choice(self.numbers)
-        txt = top[x - 1][0]
-        self.numbers.remove(x)
-
-        self.data = [[f"images/f1s1_{x:03}.png", 1]]
-        for y in self.numbers:
-            self.data.append([f"images/f1s1_{y:03}.png", 0])
-
-        random.shuffle(self.data)
-
-        self.win["txt"].update(txt)
-
-        for i, d in enumerate(self.data):
-            self.win[f"btn{i}"].update(image_filename=d[0])
-            if d[1] == 1:
-                self.ans = i
-
-    def execute(self, num):
-        if num == self.ans:
-            tf = "正解"
-            self.win["tf"].update(tf)
-            if self.cr > self.ct:
-                self.ct += 1
-            self.al += 1
-            per = f"正答率:{round(self.ct / self.al * 100, 1)}%"
-            count = f"正答数:{self.ct}"
-            self.win["count"].update(count)
-            self.win["per"].update(per)
-
-        elif num == 6:
-            self.win["tf"].update("開始ボタンを押してください")
-
-        else:
-            tf = "不正解"
-            self.al += 1
-            per = f"正答率:{round(self.ct / self.al * 100, 1)}%"
-            self.win["tf"].update(tf)
-            self.win["per"].update(per)
-
-# メインループ
-state = GameState(win)
-
-btn_map = {
-    "btn0": 0, "btn1": 1, "btn2": 2,
-    "btn3": 3, "btn4": 4, "btn5": 5
-}
-
-while True:
-    e, v = win.read()
-
-    if e == "btn":
-        state.question(top)
-        state.btn = "次へ"
-        win["btn"].update(state.btn)
-
-    elif e in btn_map:
-        if state.btn == "開始":
-            state.execute(6)
-        else:
-            state.execute(btn_map[e])
-    
-    elif e == "reset_btn":
-        state.reset()
-
-    elif e == "exit":
-        break
-
-    if e is None:
-        break
-
-win.close()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = HyakuninIsshuApp(root)
+    root.mainloop()
