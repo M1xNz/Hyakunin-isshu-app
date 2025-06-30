@@ -19,4 +19,6 @@ Python + PySimpleGUI で作った
    pip install PySimpleGUI
 
 3. 以下のコマンドでアプリを起動します。
+   
+   ```bash
    python hyakunin-isshu.py
